@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medical Records</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<style>
+  body, html {
+    margin: 0;
+    padding: 0;
+    font-family: Arial, sans-serif;
+}
+
+.container {
+    display: flex;
+}
+
+.sidebar {
+    width: 250px;
+    background-color: #f1f1f1;
+    padding: 20px;
+    overflow-y: auto; /* Додавання скролу */
+}
+
+.sidebar h2 {
+    margin-top: 0;
+}
+
+.main-content {
+    flex: 1;
+    padding: 20px;
+}
+
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+.modal-content {
+    background-color: #fefefe;
+    margin: 15% auto;
+    padding: 20px;
+    border: 1px solid #888;
+    width: 80%;
+    max-width: 400px;
+}
+
+.modal input[type="text"], .modal textarea {
+    width: 100%;
+    padding: 10px;
+    margin: 5px 0;
+    display: inline-block;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+.modal button {
+    background-color: #4CAF50;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    float: right;
+}
+
+.modal button.cancel {
+    background-color: #f44336;
+}
+
+.modal button:hover {
+    background-color: #45a049;
+}
+
+.modal button.cancel:hover {
+    background-color: #f44336;
+}
+
+#searchInput {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 10px;
+    box-sizing: border-box;
+}
+
+.close {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+}
+
+.close:hover,
+.close:focus {
+    color: black;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.patient-info {
+    border: 1px solid #ccc;
+    padding: 10px;
+    margin-bottom: 20px;
+}
+
+.comment-input { /* Стилізація поля введення коментарів */
+    width: calc(100% - 20px);
+    padding: 10px;
+    margin-bottom: 10px;
+    box-sizing: border-box;
+}
+
+</style>
+
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <h2>Patients</h2>
+            <input type="text" id="searchInput" placeholder="Search..." oninput="searchPatients()">
+            <button onclick="openAddPatientModal()">New Patient</button>
+            <ul id="patientList">
+                <!-- Patient list will be populated here -->
+            </ul>
+        </div>
+        <div class="main-content">
+            <div id="patientInfo" class="patient-info">
+                <!-- Patient information will be displayed here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div id="addPatientModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="cancelAddPatient()">&times;</span>
+            <h2>Add New Patient</h2>
+            <input type="text" id="newPatientName" placeholder="Name">
+            <input type="text" id="newPatientAge" placeholder="Age">
+            <input type="text" id="newPatientGender" placeholder="Gender">
+            <textarea id="newPatientHistory" placeholder="History of illness"></textarea>
+            <button onclick="addPatient()">Add Patient</button>
+        </div>
+    </div>
+    <div id="editPatientModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="cancelEditPatient()">&times;</span>
+            <h2>Edit Patient</h2>
+            <input type="text" id="editPatientName" placeholder="Name">
+            <input type="text" id="editPatientAge" placeholder="Age">
+            <input type="text" id="editPatientGender" placeholder="Gender">
+            <textarea id="editPatientHistory" placeholder="History of illness"></textarea>
+            <button onclick="editPatient()">Save Changes</button>
+            <button class="cancel" onclick="cancelEditPatient()">Cancel</button> <!-- Додано кнопку "Cancel" -->
+        </div>
+    </div>
+
+    <script>
+        // Sample data for patients
+        let patients = [
+            { id: 1, name: "John Doe", age: 35, gender: "Male", history: "History of illness 1", comments: ["Comment 1", "Comment 2"] },
+            { id: 2, name: "Jane Smith", age: 28, gender: "Female", history: "History of illness 2", comments: ["Comment 3", "Comment 4"] },
+            { id: 3, name: "Michael Johnson", age: 45, gender: "Male", history: "History of illness 3", comments: ["Comment 5"] }
+        ];
+
+        // Function to display patients list
+        function displayPatients(patientsToShow = patients) {
+            const patientList = document.getElementById("patientList");
+            patientList.innerHTML = '';
+            patientsToShow.forEach(patient => {
+                const listItem = document.createElement("li");
+                const button = document.createElement("button");
+                button.textContent = patient.name; 
+                button.onclick = () => displayPatientInfo(patient); 
+                listItem.appendChild(button); 
+                patientList.appendChild(listItem);
+            });
+        }
+
+
+        function displayPatientInfo(patient) {
+            const patientInfo = document.getElementById("patientInfo");
+            patientInfo.innerHTML = `
+                <h3>${patient.name}</h3>
+                <p>Age: ${patient.age}</p>
+                <p>Gender: ${patient.gender}</p>
+                <h4>History of Illness</h4>
+                <textarea id="patientHistory">${patient.history}</textarea>
+                <h4>Comments</h4>
+                <ul id="commentList">
+                    ${patient.comments.map(comment => `<li>${comment}</li>`).join('')}
+                </ul>
+                <textarea id="commentInput" class="comment-input" placeholder="Add comment"></textarea> <!-- Додане поле для коментарів -->
+                <button onclick="addComment(${patient.id})">Add Comment</button> <!-- Кнопка додавання коментарів -->
+            `;
+            const cancelButton = document.createElement("button"); 
+            cancelButton.textContent = "Cancel";
+            cancelButton.className = "cancel";
+            cancelButton.onclick = () => clearPatientInfo(); 
+            const editButton = document.createElement("button"); 
+            editButton.onclick = () => openEditPatientModal(patient);
+            const deleteButton = document.createElement("button");
+            deleteButton.textContent = "Delete";
+            deleteButton.onclick = () => deletePatient(patient.id); 
+            patientInfo.insertBefore(cancelButton, patientInfo.firstChild); 
+            patientInfo.insertBefore(editButton, patientInfo.firstChild); 
+            patientInfo.insertBefore(deleteButton, patientInfo.firstChild); 
+        }
+
+        // Function to open add patient modal
+        function openAddPatientModal() {
+            const addPatientModal = document.getElementById("addPatientModal");
+            addPatientModal.style.display = "block";
+        }
+
+        // Function to add a new patient
+        function addPatient() {
+            const name = document.getElementById("newPatientName").value;
+            const age = document.getElementById("newPatientAge").value;
+            const gender = document.getElementById("newPatientGender").value;
+            const history = document.getElementById("newPatientHistory").value; // Отримання значення історії хвороби
+            const newPatient = {
+                id: patients.length + 1,
+                name: name,
+                age: age,
+                gender: gender,
+                history: history,
+                comments: []
+            };
+            patients.push(newPatient);
+            displayPatients();
+            closeModal('addPatientModal');
+        }
+
+        // Function to open edit patient modal
+        function openEditPatientModal(patient) { // Приймає об'єкт пацієнта
+            const editPatientModal = document.getElementById("editPatientModal");
+            document.getElementById("editPatientName").value = patient.name;
+            document.getElementById("editPatientAge").value = patient.age;
+            document.getElementById("editPatientGender").value = patient.gender;
+            document.getElementById("editPatientHistory").value = patient.history; // Встановлює значення історії хвороби
+            editPatientModal.style.display = "block";
+            editPatientModal.setAttribute("data-id", patient.id);
+        }
+
+        // Function to edit patient information
+        function editPatient() {
+            const patientId = document.getElementById("editPatientModal").getAttribute("data-id");
+            const patientIndex = patients.findIndex(p => p.id == patientId);
+            patients[patientIndex].name = document.getElementById("editPatientName").value;
+            patients[patientIndex].age = document.getElementById("editPatientAge").value;
+            patients[patientIndex].gender = document.getElementById("editPatientGender").value;
+            patients[patientIndex].history = document.getElementById("editPatientHistory").value; // Зберігає значення історії хвороби
+            displayPatients();
+            closeModal('editPatientModal');
+        }
+
+        // Function to delete patient
+        function deletePatient(patientId) {
+            patients = patients.filter(patient => patient.id !== patientId);
+            displayPatients();
+            const patientInfo = document.getElementById("patientInfo");
+            patientInfo.innerHTML = ""; // Clear patient info panel after deletion
+        }
+
+        // Function to close modal
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = "none";
+        }
+
+        // Function to cancel add patient
+        function cancelAddPatient() {
+            closeModal('addPatientModal');
+            clearAddPatientFields();
+        }
+
+        // Function to clear add patient fields
+        function clearAddPatientFields() {
+            document.getElementById("newPatientName").value = "";
+            document.getElementById("newPatientAge").value = "";
+            document.getElementById("newPatientGender").value = "";
+            document.getElementById("newPatientHistory").value = "";
+        }
+
+        // Function to cancel edit patient
+        function cancelEditPatient() {
+            closeModal('editPatientModal');
+        }
+
+        // Function to add comment
+        function addComment(patientId) {
+            const comment = document.getElementById("commentInput").value;
+            const patientIndex = patients.findIndex(p => p.id == patientId);
+            patients[patientIndex].comments.push(comment);
+            displayPatientInfo(patients[patientIndex]); // Оновлюємо інформацію про пацієнта
+        }
+
+        // Function to clear patient info
+        function clearPatientInfo() {
+            const patientInfo = document.getElementById("patientInfo");
+            patientInfo.innerHTML = ""; // Clear patient info panel
+        }
+
+        // Function to search patients by name
+        function searchPatients() {
+            const searchInput = document.getElementById("searchInput").value.toLowerCase();
+            const filteredPatients = patients.filter(patient => patient.name.toLowerCase().includes(searchInput));
+            displayPatients(filteredPatients);
+        }
+
+        // Initial display of patients list
+        displayPatients();
+    </script>
+</body>
+</html>
+
